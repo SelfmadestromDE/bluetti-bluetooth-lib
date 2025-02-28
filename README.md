@@ -2,7 +2,7 @@
 
 ## I. Bluetooth channel encryption programme description
 
-In order to solve the problem of Bluetooth communication security, Bluetti products implement the encryption programme for the Bluetooth channel, after the Bluetooth connection is established, the encryption and decryption secret key must be used before the communication can be carried out. Therefore, based on the function of Bluetooth encryption products, it is impossible to use plaintext for Bluetooth communication to obtain Bluetti product data information.
+In order to make Bluetooth communication more secure, Bluetti products implement the encryption for the Bluetooth channel, after the Bluetooth connection is established, the encryption and decryption secret key must be used before the communication can be carried out. Therefore, based on the function of Bluetooth encryption products, it is impossible to use plaintext for Bluetooth communication to obtain Bluetti product data information.
 
 In order to solve the above problem, Bluetti provides Bluetooth channel decryption module. The encryption and decryption module provides APIs for external calls to realise the encryption and decryption functions of the Bluetooth channel.
 
@@ -13,13 +13,11 @@ In order to solve the above problem, Bluetti provides Bluetooth channel decrypti
 Bluetooth encryption and decryption module has two files, when installing, you need to put these two files into the python installation directory (site-packages). 
 
 - bluetti_crypt.py: Python package for bluetooth encryption and decryption module.
-
-
-
+- _bluetti_crypt.so: Bluetooth encryption and decryption module library file to implement encryption and decryption functions.
   
-Note: The file extension is .so for Linux and MacOS, and .pyd for windows.
+Note: The file extension .so is for Linux and MacOS, and .py for windows.
 
-**Installation Steps
+# Installation Steps
 
 1. Unpack the zip package
 
@@ -27,7 +25,7 @@ Note: The file extension is .so for Linux and MacOS, and .pyd for windows.
 
 Linux environment can use the command to install, the command is as follows:
 
-Unzip the archive: `unzip bluettip 
+Unzip the archive:
 
 `unzip bluetti_crypt.zip -C bluetti_crypt`.
 
@@ -35,7 +33,7 @@ Copy the bluetooth encryption module to the installation directory.
 
 `cp -rf bluetti_crypt.py _bluetti_crypt.so /home/cloud/.local/lib/python3.12/site-packages/`.
 
-* where the installation directory needs to be modified according to your own python directory. *
+* The installation directory needs to be modified according to your own python directory. *
 
 ### 2. Using
 
