@@ -12,16 +12,18 @@ In order to solve the above problem, Bluetti provides Bluetooth channel decrypti
 
 Bluetooth encryption and decryption module has two files, when installing, you need to put these two files into the python installation directory (site-packages). 
 
-- bluetti_crypt.py: Python package for bluetooth encryption and decryption module.
-- _bluetti_crypt.so: Bluetooth encryption and decryption module library file to implement encryption and decryption functions.
+- `bluetti_crypt.py`: Python package for bluetooth encryption and decryption module.
+- `_bluetti_crypt.so`: Bluetooth encryption and decryption module library file to implement encryption and decryption functions.
   
 Note: The file extension .so is for Linux and MacOS, and .py for windows.
 
 # Installation Steps
 
-1. Unpack the zip package
+1. Download the package: [bluetti-official/bluetti-bluetooth-lib](https://github.com/bluetti-official/bluetti-bluetooth-lib)
 
-2. Copy the Bluetooth encryption module to the installation directory.
+2. Unpack the zip package
+
+3. Copy the Bluetooth encryption module to the installation directory.
 
 Linux environment can use the command to install, the command is as follows:
 
@@ -39,7 +41,7 @@ Copy the bluetooth encryption module to the installation directory.
 
 The Bluetooth encryption and decryption module provides three APIs for calling, which are:
 
-``c++
+```c++
 /*!
  * @brief Bluetooth encryption channel connection processing
  * @param data, input data, data sent from Bluetti device.
@@ -48,25 +50,24 @@ The Bluetooth encryption and decryption module provides three APIs for calling, 
             1~2: Authentication in progress
             3: Checking SN legitimacy
             4: Bluetooth connection completed
- * @return Successfully returns encrypted data, failure returns ‘’.
-*/
+ * @return Successfully returns encrypted data, failure returns "".
+ */
 std::string BluettiCrypt::ble_crypt_link_handler(std::string data, int *status);
 
 /*!
- * @brief Data to be encrypted
+ * @brief Encrypt data
  * @param data The data to be encrypted.
- * @return Successfully returns the encrypted data, failure returns ‘’
+ * @return Successfully returns the encrypted data, failure returns "".
  */
-std::string BluettiCrypt::encrypt_data(std::string data);; std::string data(std::string data); std::string data(std::string data)
+std::string BluettiCrypt::encrypt_data(std::string data);
 
 /*!
- * @brief decrypt data
+ * @brief Decrypt data
  * @param data, the data to be decrypted.
- * @return Returns the decrypted data if it succeeds, or ‘’ if it fails.
+ * @return Returns the decrypted data if it succeeds, or return "" if it fails.
  */
 std::string BluettiCrypt::decrypt_data(std::string data);
-
-``
+```
 
 - Bluetooth connection: `ble_crypt_link_handler()` is used for the secret key authentication phase after Bluetooth connect, and interactions such as querying data can only be performed after this phase is complete. In the secret key authentication phase, there is no need to handle additional Bluetooth data, direct transmission can be; that is, the Bluetooth encryption and decryption module and Bluetooth side of the direct data interaction. Until `ble_crypt_link_handler` returns `BLE_LINK_STATUS_COMEPLETE` the next step can be carried out.
 - Bluetooth data encryption: `encrypt_data()` is the data encryption API, Bluetooth data sent to Bluetti device needs to be encrypted before it can be recognised. Bluetooth data decryption: `decrypt_data()` is the data decryption API.
