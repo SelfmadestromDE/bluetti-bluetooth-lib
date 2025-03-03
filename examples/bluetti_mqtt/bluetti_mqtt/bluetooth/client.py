@@ -4,14 +4,16 @@ import logging
 from typing import Union
 from bleak import BleakClient, BleakError
 from bleak.exc import BleakDeviceNotFoundError
-from bluetti_mqtt.core import DeviceCommand
+from bluetti_mqtt.core import DeviceCommand, ReadHoldingRegisters
 from .exc import BadConnectionError, ModbusError, ParseError
-
+from .encrypt import bleEncrypt
+from typing import List, Tuple
 
 @unique
 class ClientState(Enum):
     NOT_CONNECTED = auto()
     CONNECTED = auto()
+    ENCRYPT_AUTH = auto()
     READY = auto()
     PERFORMING_COMMAND = auto()
     COMMAND_ERROR_WAIT = auto()
@@ -29,7 +31,7 @@ class BluetoothClient:
     notify_future: asyncio.Future
     notify_response: bytearray
 
-    def __init__(self, address: str):
+    def __init__(self, address: Tuple):
         self.address = address
         self.state = ClientState.NOT_CONNECTED
         self.name = None
@@ -37,6 +39,8 @@ class BluetoothClient:
         self.command_queue = asyncio.Queue()
         self.notify_future = None
         self.loop = asyncio.get_running_loop()
+        self.encryptManager = bleEncrypt()
+        self.encryptEnabled = False
 
     @property
     def is_ready(self):
@@ -55,11 +59,17 @@ class BluetoothClient:
             while True:
                 if self.state == ClientState.NOT_CONNECTED:
                     await self._connect()
+
+                    self.encryptEnabled = True
+
                 elif self.state == ClientState.CONNECTED:
+                    self.encryptManager.start()
                     if not self.name:
                         await self._get_name()
                     else:
                         await self._start_listening()
+                elif self.state == ClientState.ENCRYPT_AUTH:
+                    await self._encrypt_link()
                 elif self.state == ClientState.READY:
                     await self._perform_command()
                 elif self.state == ClientState.DISCONNECTING:
@@ -100,9 +110,55 @@ class BluetoothClient:
             await self.client.start_notify(
                 self.NOTIFY_UUID,
                 self._notification_handler)
-            self.state = ClientState.READY
+            if self.encryptEnabled == True:
+                logging.info(f'client start authen')
+                self.state = ClientState.ENCRYPT_AUTH
+            else:
+                self.state = ClientState.READY
         except BleakError:
             self.state = ClientState.DISCONNECTING
+
+    async def _encrypt_link(self):
+        self.notify_future = self.loop.create_future()
+        self.notify_response = bytearray()
+
+        retries = 0
+        while retries < 5:
+            try:
+                # Wait for response
+                res = await asyncio.wait_for(
+                    self.notify_future,
+                    timeout=20)
+
+                status, response = self.encryptManager.encrypt_link(self.notify_response)
+                if (3 == status):
+                    read_commands = self.read_sn_command()
+                    for read_sn_command in read_commands:
+                        length, cmd = self.encryptManager.send_message(bytes(read_sn_command.cmd))
+                        await self.client.write_gatt_char(
+                            self.WRITE_UUID,
+                            bytes(cmd))
+                if (4 == status):
+                    logging.info(f'client connect success')
+                    self.state = ClientState.READY
+                    break
+                if (0 <= status and 0 < len(response)):
+                    await self.client.write_gatt_char(
+                        self.WRITE_UUID,
+                        bytes(response))
+                    logging.info(f'client send authen data:' + response.hex())
+                break
+            except asyncio.TimeoutError:
+                self.state = ClientState.COMMAND_ERROR_WAIT
+                retries += 1
+        if retries == 5:
+            logging.info(f'client not receive authen data, now to disconnect')
+            self.state = ClientState.DISCONNECTING
+
+    def read_sn_command(self) -> List[ReadHoldingRegisters]:
+        return [
+            ReadHoldingRegisters(11006, 4, 0) # beta
+        ]
 
     async def _perform_command(self):
         cmd, cmd_future = await self.command_queue.get()
@@ -114,6 +170,16 @@ class BluetoothClient:
                 self.current_command = cmd
                 self.notify_future = self.loop.create_future()
                 self.notify_response = bytearray()
+
+                # encrypt bluetooth message
+                length, command = self.encryptManager.send_message(bytes(cmd))
+                if (0 >= length):
+                    retries += 1
+                    continue
+                modbus_cmd = cmd
+                modbus_cmd.cmd = command
+                logging.info("send len: " + str(length) + " message: " + command.hex())
+                self.current_command = modbus_cmd
 
                 # Make request
                 await self.client.write_gatt_char(
@@ -180,12 +246,28 @@ class BluetoothClient:
         # Save data
         self.notify_response.extend(data)
 
-        if len(self.notify_response) == self.current_command.response_size():
-            if self.current_command.is_valid_response(self.notify_response):
-                self.notify_future.set_result(self.notify_response)
-            else:
-                self.notify_future.set_exception(ParseError('Failed checksum'))
-        elif self.current_command.is_exception_response(self.notify_response):
-            # We got a MODBUS command exception
-            msg = f'MODBUS Exception {self.current_command}: {self.notify_response[2]}'
-            self.notify_future.set_exception(ModbusError(msg))
+        """
+        After the Bluetooth encrypted channel is connected, the data can be sent to MQTT.
+        Otherwise, it is processed by the encryption/deryption module.
+        """
+        if self.state == ClientState.PERFORMING_COMMAND or self.state == ClientState.READY:
+            lenght, response = self.encryptManager.message_handle(data)
+            if (0 >= lenght):
+                msg = f'Failed to decrypt response {lenght} : {data.hex()}'
+                self.notify_future.set_exception(ParseError(msg))
+                return
+
+            if len(response) == self.current_command.response_size():
+                if self.current_command.is_valid_response(response):
+                    self.notify_future.set_result(response)
+                else:
+                    self.notify_future.set_exception(ParseError('Failed checksum'))
+            elif self.current_command.is_exception_response(response):
+                # We got a MODBUS command exception
+                msg = f'MODBUS Exception {self.current_command}: {response[2]}'
+                self.notify_future.set_exception(ModbusError(msg))
+        else:
+            """
+            Bluetooth is connected, but not encrypted.
+            """
+            self.notify_future.set_result(self.notify_response)
