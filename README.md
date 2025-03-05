@@ -19,7 +19,7 @@ Note: The file extension .so is for Linux and MacOS, and .py for windows.
 
 # Installation Steps
 
-1. Download the package: [bluetti-official/bluetti-bluetooth-lib](https://github.com/bluetti-official/bluetti-bluetooth-lib)
+1. Download the package: [bluetti-bluetooth-lib](https://github.com/bluetti-official/bluetti-bluetooth-lib/releases/)
 
 2. Unpack the zip package
 

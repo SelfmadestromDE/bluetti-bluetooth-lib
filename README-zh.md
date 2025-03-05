@@ -20,9 +20,11 @@
 
 **安装步骤**
 
-1. 解压压缩包
+1. 下载lib文件: [bluetti-bluetooth-lib](https://github.com/bluetti-official/bluetti-bluetooth-lib/releases/)
 
-2. 复制蓝牙加解密模块到安装目录
+2. 解压压缩包；
+
+3. 复制蓝牙加解密模块到安装目录；
 
 Linux环境可使用命令安装，命令如下：
 
