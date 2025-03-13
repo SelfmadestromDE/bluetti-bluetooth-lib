@@ -25,6 +25,8 @@ Note: The file extension .so is for Linux and MacOS, and .py for windows.
 
 3. Copy the Bluetooth encryption module to the installation directory.
 
+4. Copy and encrypt/decrypt the authorization file to the 'Program' runtime directory and name it bluetti_device_licence.csv.
+
 Linux environment can use the command to install, the command is as follows:
 
 Unzip the archive:
